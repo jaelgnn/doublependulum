@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Doppio Pendolo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0c0c0e;
+    --surface: #141418;
+    --surface2: #1c1c22;
+    --border: rgba(255,255,255,0.07);
+    --border2: rgba(255,255,255,0.13);
+    --text: #f0ede8;
+    --muted: rgba(240,237,232,0.45);
+    --faint: rgba(240,237,232,0.18);
+    --accent: #e8d5a0;
+    --accent2: #7cb8d4;
+    --arm: #c8bfa8;
+    --joint: #d4a84b;
+    --mass: #5a9fc0;
+    --trace: rgba(92,159,192,0.3);
+    --trace-bright: rgba(232,213,160,0.5);
+    --mono: 'DM Mono', monospace;
+    --display: 'Syne', sans-serif;
+  }
+
+  html, body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--mono);
+    height: 100%;
+    overflow: hidden;
+  }
+
+  /* LAYOUT */
+  #app {
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    height: 100dvh;
+    max-width: 480px;
+    margin: 0 auto;
+  }
+
+  /* HEADER */
+  header {
+    padding: 14px 20px 10px;
+    border-bottom: 0.5px solid var(--border);
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+  }
+  .logo {
+    font-family: var(--display);
+    font-size: 17px;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    color: var(--text);
+  }
+  .logo span { color: var(--accent); }
+  .time-badge {
+    font-size: 11px;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.04em;
+  }
+
+  /* CANVAS */
+  #canvas-wrap {
+    position: relative;
+    overflow: hidden;
+    background: var(--bg);
+  }
+  #pendCanvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  /* STATS OVERLAY */
+  #stats-overlay {
+    position: absolute;
+    top: 10px; left: 12px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+  .stat {
+    background: rgba(12,12,14,0.72);
+    border: 0.5px solid var(--border2);
+    border-radius: 8px;
+    padding: 6px 10px;
+    backdrop-filter: blur(6px);
+  }
+  .stat-label {
+    font-size: 9px;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .stat-val {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+    margin-top: 1px;
+  }
+  .stat-val.accent { color: var(--accent); }
+  .stat-val.accent2 { color: var(--accent2); }
+
+  /* CHAOS INDICATOR */
+  #chaos-bar-wrap {
+    position: absolute;
+    top: 10px; right: 12px;
+    width: 6px;
+    height: 80px;
+    background: var(--surface);
+    border-radius: 3px;
+    overflow: hidden;
+    border: 0.5px solid var(--border);
+  }
+  #chaos-bar {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    background: linear-gradient(to top, var(--accent2), var(--accent));
+    border-radius: 3px;
+    transition: height 0.3s ease;
+  }
+  #chaos-label {
+    position: absolute;
+    top: 96px; right: 8px;
+    font-size: 8px;
+    color: var(--faint);
+    writing-mode: vertical-rl;
+    letter-spacing: 0.12em;
+  }
+
+  /* BOTTOM PANEL */
+  #bottom {
+    background: var(--surface);
+    border-top: 0.5px solid var(--border);
+    padding: 12px 16px 16px;
+  }
+
+  /* CONTROLS */
+  .controls-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .ctrl-group { display: flex; flex-direction: column; gap: 4px; }
+  .ctrl-label {
+    font-size: 9px;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    display: flex;
+    justify-content: space-between;
+  }
+  .ctrl-val { color: var(--accent); }
+  input[type=range] {
+    width: 100%;
+    -webkit-appearance: none;
+    height: 3px;
+    border-radius: 2px;
+    background: var(--border2);
+    outline: none;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+    border: 2px solid var(--bg);
+  }
+  input[type=range]::-moz-range-thumb {
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+    border: 2px solid var(--bg);
+  }
+
+  /* ANGLE INPUTS */
+  .angle-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .angle-group { display: flex; flex-direction: column; gap: 4px; }
+  .angle-label { font-size: 9px; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; }
+  .angle-input-wrap {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    background: var(--surface2);
+    border: 0.5px solid var(--border2);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .angle-input-wrap input[type=number] {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 14px;
+    padding: 7px 10px;
+    outline: none;
+    width: 0;
+    -moz-appearance: textfield;
+  }
+  .angle-input-wrap input::-webkit-inner-spin-button,
+  .angle-input-wrap input::-webkit-outer-spin-button { -webkit-appearance: none; }
+  .angle-unit { font-size: 10px; color: var(--faint); padding: 0 8px 0 0; }
+
+  /* BUTTONS */
+  .btn-row { display: flex; gap: 8px; }
+  .btn {
+    flex: 1;
+    padding: 11px 8px;
+    border-radius: 10px;
+    border: 0.5px solid var(--border2);
+    background: transparent;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 12px;
+    cursor: pointer;
+    letter-spacing: 0.04em;
+    transition: background 0.15s, border-color 0.15s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .btn:active { background: var(--surface2); }
+  .btn.primary {
+    background: var(--accent);
+    color: #0c0c0e;
+    border-color: var(--accent);
+    font-weight: 500;
+  }
+  .btn.primary:active { opacity: 0.85; }
+  .btn.danger {
+    border-color: rgba(180,80,80,0.4);
+    color: rgba(220,120,120,0.9);
+  }
+
+  /* PRESET CHIPS */
+  .presets {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 12px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .presets::-webkit-scrollbar { display: none; }
+  .preset-chip {
+    flex-shrink: 0;
+    padding: 5px 11px;
+    border-radius: 20px;
+    border: 0.5px solid var(--border2);
+    background: transparent;
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 10px;
+    cursor: pointer;
+    letter-spacing: 0.04em;
+    -webkit-tap-highlight-color: transparent;
+    transition: all 0.15s;
+  }
+  .preset-chip:active, .preset-chip.active {
+    background: var(--surface2);
+    color: var(--text);
+    border-color: var(--accent);
+  }
+
+  /* PLOT */
+  #plotWrap {
+    position: absolute;
+    bottom: 10px; right: 12px;
+    width: 110px; height: 60px;
+    background: rgba(12,12,14,0.78);
+    border: 0.5px solid var(--border2);
+    border-radius: 8px;
+    backdrop-filter: blur(4px);
+    overflow: hidden;
+  }
+  #plotCanvas { display: block; }
+  #plot-label {
+    position: absolute;
+    top: 4px; left: 6px;
+    font-size: 8px;
+    color: var(--faint);
+    letter-spacing: 0.06em;
+  }
+
+  /* ENERGY DRIFT */
+  #drift-badge {
+    position: absolute;
+    bottom: 10px; left: 12px;
+    font-size: 9px;
+    color: var(--faint);
+    letter-spacing: 0.05em;
+  }
+
+  /* SWIPE HINT */
+  #hint {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    pointer-events: none;
+    opacity: 1;
+    transition: opacity 0.8s;
+  }
+  #hint.hidden { opacity: 0; }
+  #hint p { font-size: 12px; color: var(--faint); letter-spacing: 0.06em; }
+  #hint .big { font-family: var(--display); font-size: 36px; font-weight: 800; color: var(--faint); letter-spacing: -0.04em; margin-bottom: 4px; }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+<div class="logo">EPFL <span>Double Pendulum</span></div>
+    <div class="time-badge" id="timeDisplay">t = 0.000 s</div>
+  </header>
+
+  <div id="canvas-wrap">
+    <div class="project-note">
+  Educational simulation based on an experimental double pendulum prototype.
+</div>
+    <canvas id="pendCanvas"></canvas>
+
+    <div id="stats-overlay">
+      <div class="stat">
+        <div class="stat-label">θ₁</div>
+        <div class="stat-val accent" id="s1">90.0°</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">θ₂</div>
+        <div class="stat-val accent2" id="s2">0.0°</div>
+      </div>
+    </div>
+
+    <div id="chaos-bar-wrap"><div id="chaos-bar" style="height:0%"></div></div>
+    <div id="chaos-label">CAOS</div>
+
+    <div id="plotWrap">
+      <canvas id="plotCanvas" width="110" height="60"></canvas>
+      <div id="plot-label">θ(t)</div>
+    </div>
+
+    <div id="drift-badge">ΔE = <span id="driftVal">0.000%</span></div>
+
+    <div id="hint">
+      <div class="big">⊙</div>
+      <p>trascina il pendolo<br>per impostare l'angolo</p>
+    </div>
+  </div>
+
+  <div id="bottom">
+    <div class="presets">
+      <button class="preset-chip" onclick="applyPreset(90,0)">classico</button>
+      <button class="preset-chip" onclick="applyPreset(120,180)">butterfly</button>
+      <button class="preset-chip" onclick="applyPreset(45,45)">gentile</button>
+      <button class="preset-chip" onclick="applyPreset(179,1)">caos</button>
+      <button class="preset-chip" onclick="applyPreset(90,90)">sincrono</button>
+      <button class="preset-chip" onclick="applyPreset(0,180)">invertito</button>
+    </div>
+
+    <div class="controls-grid">
+      <div class="ctrl-group">
+        <div class="ctrl-label">massa giunto <span class="ctrl-val" id="mjLabel">50g</span></div>
+        <input type="range" min="0" max="200" value="50" id="mjSlider" oninput="updateMj(this.value)">
+      </div>
+      <div class="ctrl-group">
+        <div class="ctrl-label">traccia <span class="ctrl-val" id="traceLabel">ON</span></div>
+        <input type="range" min="0" max="1" step="1" value="1" id="traceSlider" oninput="toggleTrace(this.value)">
+      </div>
+      <div class="ctrl-group">
+        <div class="ctrl-label">L₁ <span class="ctrl-val" id="l1Label">30cm</span></div>
+        <input type="range" min="10" max="50" value="30" id="l1Slider" oninput="updateL1(this.value)">
+      </div>
+      <div class="ctrl-group">
+        <div class="ctrl-label">L₂ <span class="ctrl-val" id="l2Label">25cm</span></div>
+        <input type="range" min="10" max="50" value="25" id="l2Slider" oninput="updateL2(this.value)">
+      </div>
+    </div>
+
+    <div class="angle-row">
+      <div class="angle-group">
+        <div class="angle-label">angolo θ₁</div>
+        <div class="angle-input-wrap">
+          <input type="number" id="th1Input" value="90" min="-180" max="180" oninput="setAngle1(this.value)">
+          <span class="angle-unit">°</span>
+        </div>
+      </div>
+      <div class="angle-group">
+        <div class="angle-label">angolo θ₂</div>
+        <div class="angle-input-wrap">
+          <input type="number" id="th2Input" value="0" min="-180" max="180" oninput="setAngle2(this.value)">
+          <span class="angle-unit">°</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn primary" id="playBtn" onclick="togglePlay()">▶ avvia</button>
+      <button class="btn" onclick="resetSim()">↺ reset</button>
+      <button class="btn danger" onclick="clearTrace()">✕ traccia</button>
+    </div>
+  </div>
+</div>
+.project-note {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 80px;
+  font-size: 9px;
+  line-height: 1.4;
+  color: var(--faint);
+  text-align: center;
+  pointer-events: none;
+}
+
+<script>
+const g = 9.81;
+let params = { L1: 0.30, m1: 0.200, r1: 0.15, I1: 0.0015, mj: 0.050, L2: 0.25, m2: 0.150, r2: 0.125, I2: 0.0008 };
+let state = [Math.PI/2, 0, 0, 0];
+let running = false, animId = null, lastTs = null, simTime = 0;
+let traceOn = true, tracePoints = [];
+let th1Hist = [], th2Hist = [], tHist = [];
+let E0 = null, hintShown = false;
+
+const pCanvas = document.getElementById('pendCanvas');
+const pCtx = pCanvas.getContext('2d');
+const plotCanvas = document.getElementById('plotCanvas');
+const plotCtx = plotCanvas.getContext('2d');
+
+function resize() {
+  const wrap = document.getElementById('canvas-wrap');
+  pCanvas.width = wrap.offsetWidth;
+  pCanvas.height = wrap.offsetHeight;
+  drawPendulum(state);
+}
+window.addEventListener('resize', resize);
+setTimeout(resize, 50);
+
+function derivatives(s, p) {
+  const { L1, m1, r1, I1, mj, L2, m2, r2, I2 } = p;
+  const [th1, th2, w1, w2] = s;
+  const I1e = I1 + m1*r1*r1;
+  const I2e = I2 + m2*r2*r2;
+  const M11 = I1e + (m2+mj)*L1*L1;
+  const M22 = I2e;
+  const M12 = m2*L1*r2*Math.cos(th1-th2);
+  const C1 = -m2*L1*r2*w2*w2*Math.sin(th1-th2) - g*(m1*r1+(m2+mj)*L1)*Math.sin(th1);
+  const C2 = m2*L1*r2*w1*w1*Math.sin(th1-th2) - g*m2*r2*Math.sin(th2);
+  const det = M11*M22 - M12*M12;
+  return [w1, w2, (M22*C1-M12*C2)/det, (M11*C2-M12*C1)/det];
+}
+
+function rk4(s, dt, p) {
+  const k1 = derivatives(s, p);
+  const s2 = s.map((v,i) => v+0.5*dt*k1[i]);
+  const k2 = derivatives(s2, p);
+  const s3 = s.map((v,i) => v+0.5*dt*k2[i]);
+  const k3 = derivatives(s3, p);
+  const s4 = s.map((v,i) => v+dt*k3[i]);
+  const k4 = derivatives(s4, p);
+  return s.map((v,i) => v+dt/6*(k1[i]+2*k2[i]+2*k3[i]+k4[i]));
+}
+
+function energy(s, p) {
+  const { L1, m1, r1, mj, m2, r2, I1, I2 } = p;
+  const [th1, th2, w1, w2] = s;
+  const I1e = I1+m1*r1*r1, I2e = I2+m2*r2*r2;
+  const KE = 0.5*I1e*w1*w1 + 0.5*mj*(L1*w1)**2 + 0.5*I2e*w2*w2 + m2*L1*r2*w1*w2*Math.cos(th1-th2) + 0.5*m2*(L1*w1)**2;
+  const y1 = -r1*Math.cos(th1), yj = -L1*Math.cos(th1), y2 = yj-r2*Math.cos(th2);
+  return KE + g*(m1*y1+mj*yj+m2*y2);
+}
+
+function drawPendulum(s) {
+  const W = pCanvas.width, H = pCanvas.height;
+  pCtx.clearRect(0, 0, W, H);
+  pCtx.fillStyle = '#0c0c0e';
+  pCtx.fillRect(0, 0, W, H);
+
+  const ox = W/2, oy = H * 0.38;
+  const maxLen = params.L1 + params.L2;
+  const scale = Math.min(W*0.42, H*0.42) / maxLen;
+
+  const [th1, th2] = s;
+  const x1 = ox + params.L1*Math.sin(th1)*scale;
+  const y1 = oy + params.L1*Math.cos(th1)*scale;
+  const x2 = x1 + params.L2*Math.sin(th2)*scale;
+  const y2 = y1 + params.L2*Math.cos(th2)*scale;
+
+  // Grid lines subtle
+  pCtx.strokeStyle = 'rgba(255,255,255,0.03)';
+  pCtx.lineWidth = 0.5;
+  for (let i = -3; i <= 3; i++) {
+    pCtx.beginPath(); pCtx.moveTo(ox+i*scale*0.25, 0); pCtx.lineTo(ox+i*scale*0.25, H); pCtx.stroke();
+    pCtx.beginPath(); pCtx.moveTo(0, oy+i*scale*0.25); pCtx.lineTo(W, oy+i*scale*0.25); pCtx.stroke();
+  }
+
+  // Trace
+  if (traceOn && tracePoints.length > 1) {
+    pCtx.save();
+    for (let i = 1; i < tracePoints.length; i++) {
+      const alpha = i / tracePoints.length;
+      const tx0 = ox + tracePoints[i-1][0]*scale, ty0 = oy + tracePoints[i-1][1]*scale;
+      const tx1 = ox + tracePoints[i][0]*scale, ty1 = oy + tracePoints[i][1]*scale;
+      pCtx.beginPath();
+      pCtx.moveTo(tx0, ty0); pCtx.lineTo(tx1, ty1);
+      pCtx.strokeStyle = `rgba(92,159,192,${alpha * 0.55})`;
+      pCtx.lineWidth = 1.2;
+      pCtx.stroke();
+    }
+    pCtx.restore();
+  }
+
+  // Arms
+  const aw = Math.max(8, scale * 0.045);
+  drawArm(pCtx, ox, oy, x1, y1, aw, '#c8bfa8');
+  drawArm(pCtx, x1, y1, x2, y2, aw * 0.8, '#b0a898');
+
+  // Pivot mount
+  pCtx.beginPath(); pCtx.arc(ox, oy, 5, 0, 2*Math.PI);
+  pCtx.fillStyle = '#555'; pCtx.fill();
+  pCtx.beginPath(); pCtx.arc(ox, oy, 2.5, 0, 2*Math.PI);
+  pCtx.fillStyle = '#222'; pCtx.fill();
+
+  // Joint with mass
+  const jr = Math.max(9, scale * (params.mj + 0.02) * 2.5);
+  pCtx.beginPath(); pCtx.arc(x1, y1, jr, 0, 2*Math.PI);
+  pCtx.fillStyle = '#3a2f10';
+  pCtx.fill();
+  pCtx.strokeStyle = '#d4a84b'; pCtx.lineWidth = 1.5; pCtx.stroke();
+  pCtx.beginPath(); pCtx.arc(x1, y1, jr*0.4, 0, 2*Math.PI);
+  pCtx.fillStyle = 'rgba(212,168,75,0.3)'; pCtx.fill();
+
+  // End mass
+  const mr = Math.max(7, scale * 0.04);
+  pCtx.beginPath(); pCtx.arc(x2, y2, mr, 0, 2*Math.PI);
+  pCtx.fillStyle = '#1a3a50'; pCtx.fill();
+  pCtx.strokeStyle = '#5a9fc0'; pCtx.lineWidth = 1.5; pCtx.stroke();
+  pCtx.beginPath(); pCtx.arc(x2-mr*0.3, y2-mr*0.3, mr*0.3, 0, 2*Math.PI);
+  pCtx.fillStyle = 'rgba(90,159,192,0.3)'; pCtx.fill();
+
+  // Angle arcs
+  drawAngleArc(pCtx, ox, oy, 0, th1, '#e8d5a0', '30');
+  drawAngleArc(pCtx, x1, y1, 0, th2, '#7cb8d4', '22');
+}
+
+function drawArm(ctx, x0, y0, x1, y1, w, col) {
+  const angle = Math.atan2(y1-y0, x1-x0);
+  const ca = Math.cos(angle+Math.PI/2), sa = Math.sin(angle+Math.PI/2);
+  const tw = w*0.45;
+  ctx.beginPath();
+  ctx.moveTo(x0-ca*w/2, y0-sa*w/2);
+  ctx.lineTo(x0+ca*w/2, y0+sa*w/2);
+  ctx.lineTo(x1+ca*tw/2, y1+sa*tw/2);
+  ctx.lineTo(x1-ca*tw/2, y1-sa*tw/2);
+  ctx.closePath();
+  ctx.fillStyle = col; ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.06)'; ctx.lineWidth = 0.5; ctx.stroke();
+}
+
+function drawAngleArc(ctx, cx, cy, ref, angle, col, r) {
+  ctx.beginPath();
+  ctx.arc(cx, cy, parseFloat(r), ref - Math.PI/2, angle - Math.PI/2, angle < 0);
+  ctx.strokeStyle = col + '55'; ctx.lineWidth = 1; ctx.stroke();
+}
+
+function drawPlot() {
+  const W = plotCanvas.width, H = plotCanvas.height;
+  plotCtx.clearRect(0, 0, W, H);
+  plotCtx.fillStyle = 'rgba(12,12,14,0.0)';
+  plotCtx.fillRect(0, 0, W, H);
+  if (th1Hist.length < 2) return;
+  const n = th1Hist.length;
+  const mn = Math.min(...th1Hist, ...th2Hist), mx = Math.max(...th1Hist, ...th2Hist);
+  const range = mx-mn || 1;
+  const pad = 8;
+  function toY(v) { return H - pad - (H-2*pad)*(v-mn)/range; }
+  function toX(i) { return pad + (W-2*pad)*i/(n-1); }
+
+  plotCtx.beginPath(); plotCtx.strokeStyle = '#e8d5a055'; plotCtx.lineWidth = 1.2;
+  th1Hist.forEach((v,i) => { i===0 ? plotCtx.moveTo(toX(i),toY(v)) : plotCtx.lineTo(toX(i),toY(v)); });
+  plotCtx.stroke();
+
+  plotCtx.beginPath(); plotCtx.strokeStyle = '#7cb8d455'; plotCtx.lineWidth = 1.2;
+  th2Hist.forEach((v,i) => { i===0 ? plotCtx.moveTo(toX(i),toY(v)) : plotCtx.lineTo(toX(i),toY(v)); });
+  plotCtx.stroke();
+}
+
+function loop(ts) {
+  if (!running) return;
+  if (lastTs !== null) {
+    let dt = Math.min((ts-lastTs)/1000, 0.025);
+    const steps = 12;
+    for (let i = 0; i < steps; i++) state = rk4(state, dt/steps, params);
+    simTime += dt;
+    const [th1, th2, w1, w2] = state;
+    const x2r = params.L1*Math.sin(th1) + params.L2*Math.sin(th2);
+    const y2r = params.L1*Math.cos(th1) + params.L2*Math.cos(th2);
+    if (traceOn) {
+      tracePoints.push([x2r, y2r]);
+      if (tracePoints.length > 4000) tracePoints.shift();
+    }
+    th1Hist.push(th1*180/Math.PI); th2Hist.push(th2*180/Math.PI);
+    if (th1Hist.length > 300) { th1Hist.shift(); th2Hist.shift(); }
+    const E = energy(state, params);
+    if (E0 === null) E0 = E;
+    const drift = Math.abs((E-E0)/Math.max(Math.abs(E0),1e-6))*100;
+    const chaos = Math.min(100, (Math.abs(w1)+Math.abs(w2))*3);
+
+    document.getElementById('s1').textContent = (th1*180/Math.PI).toFixed(1)+'°';
+    document.getElementById('s2').textContent = (th2*180/Math.PI).toFixed(1)+'°';
+    document.getElementById('timeDisplay').textContent = 't = ' + simTime.toFixed(3) + ' s';
+    document.getElementById('driftVal').textContent = drift.toFixed(3) + '%';
+    document.getElementById('chaos-bar').style.height = chaos + '%';
+    drawPendulum(state);
+    drawPlot();
+
+    if (!hintShown) { document.getElementById('hint').classList.add('hidden'); hintShown = true; }
+  }
+  lastTs = ts;
+  animId = requestAnimationFrame(loop);
+}
+
+function togglePlay() {
+  running = !running;
+  const btn = document.getElementById('playBtn');
+  if (running) {
+    if (E0 === null) E0 = energy(state, params);
+    lastTs = null;
+    animId = requestAnimationFrame(loop);
+    btn.textContent = '⏸ pausa';
+  } else {
+    cancelAnimationFrame(animId);
+    btn.textContent = '▶ avvia';
+  }
+}
+
+function resetSim() {
+  cancelAnimationFrame(animId);
+  running = false; lastTs = null; simTime = 0;
+  tracePoints = []; th1Hist = []; th2Hist = []; E0 = null;
+  const th1 = parseFloat(document.getElementById('th1Input').value) || 90;
+  const th2 = parseFloat(document.getElementById('th2Input').value) || 0;
+  state = [th1*Math.PI/180, th2*Math.PI/180, 0, 0];
+  document.getElementById('playBtn').textContent = '▶ avvia';
+  document.getElementById('s1').textContent = th1.toFixed(1)+'°';
+  document.getElementById('s2').textContent = th2.toFixed(1)+'°';
+  document.getElementById('timeDisplay').textContent = 't = 0.000 s';
+  document.getElementById('driftVal').textContent = '0.000%';
+  document.getElementById('chaos-bar').style.height = '0%';
+  drawPendulum(state);
+  plotCtx.clearRect(0,0,110,60);
+}
+
+function applyPreset(a1, a2) {
+  document.getElementById('th1Input').value = a1;
+  document.getElementById('th2Input').value = a2;
+  resetSim();
+  document.querySelectorAll('.preset-chip').forEach(c => c.classList.remove('active'));
+  event.target.classList.add('active');
+}
+
+function setAngle1(v) { state[0] = parseFloat(v)*Math.PI/180; if (!running) drawPendulum(state); }
+function setAngle2(v) { state[1] = parseFloat(v)*Math.PI/180; if (!running) drawPendulum(state); }
+function updateMj(v) { params.mj = v/1000; document.getElementById('mjLabel').textContent = v+'g'; }
+function updateL1(v) { params.L1 = v/100; params.r1 = v/200; document.getElementById('l1Label').textContent = v+'cm'; if (!running) drawPendulum(state); }
+function updateL2(v) { params.L2 = v/100; params.r2 = v/200; document.getElementById('l2Label').textContent = v+'cm'; if (!running) drawPendulum(state); }
+function toggleTrace(v) { traceOn = !!parseInt(v); document.getElementById('traceLabel').textContent = traceOn ? 'ON' : 'OFF'; }
+function clearTrace() { tracePoints = []; }
+
+// Touch drag to set angle
+let dragging = null;
+pCanvas.addEventListener('touchstart', e => {
+  const touch = e.touches[0];
+  const rect = pCanvas.getBoundingClientRect();
+  const ox = pCanvas.width/2, oy = pCanvas.height*0.38;
+  const tx = (touch.clientX-rect.left) * (pCanvas.width/rect.width) - ox;
+  const ty = (touch.clientY-rect.top) * (pCanvas.height/rect.height) - oy;
+  const scale = Math.min(pCanvas.width*0.42, pCanvas.height*0.42)/(params.L1+params.L2);
+  const x1s = params.L1*Math.sin(state[0])*scale, y1s = params.L1*Math.cos(state[0])*scale;
+  const dist1 = Math.hypot(tx-x1s, ty-y1s);
+  const dist2 = Math.hypot(tx-(x1s+params.L2*Math.sin(state[1])*scale), ty-(y1s+params.L2*Math.cos(state[1])*scale));
+  dragging = dist1 < dist2 ? 1 : 2;
+  e.preventDefault();
+}, {passive:false});
+
+pCanvas.addEventListener('touchmove', e => {
+  if (!dragging) return;
+  const touch = e.touches[0];
+  const rect = pCanvas.getBoundingClientRect();
+  const ox = pCanvas.width/2, oy = pCanvas.height*0.38;
+  const tx = (touch.clientX-rect.left)*(pCanvas.width/rect.width) - ox;
+  const ty = (touch.clientY-rect.top)*(pCanvas.height/rect.height) - oy;
+  const scale = Math.min(pCanvas.width*0.42, pCanvas.height*0.42)/(params.L1+params.L2);
+  if (dragging === 1) {
+    state[0] = Math.atan2(tx, ty);
+    state[2] = 0;
+    document.getElementById('th1Input').value = Math.round(state[0]*180/Math.PI);
+  } else {
+    const x1s = params.L1*Math.sin(state[0])*scale, y1s = params.L1*Math.cos(state[0])*scale;
+    state[1] = Math.atan2(tx-x1s, ty-y1s);
+    state[3] = 0;
+    document.getElementById('th2Input').value = Math.round(state[1]*180/Math.PI);
+  }
+  if (!running) drawPendulum(state);
+  e.preventDefault();
+}, {passive:false});
+
+pCanvas.addEventListener('touchend', () => { dragging = null; });
+
+// Initial draw
+setTimeout(() => { resize(); drawPendulum(state); }, 100);
+</script>
+</body>
+</html>
